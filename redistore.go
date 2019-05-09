@@ -286,6 +286,7 @@ func (s *RediStore) Save(r *http.Request, w http.ResponseWriter, session *sessio
 		if err != nil {
 			return err
 		}
+		fmt.Println("****************************** asdfsadfasdfasdfasdfasdfasdfasdfsadfasdfsadf")
 		http.SetCookie(w, sessions.NewCookie(session.Name(), encoded, session.Options))
 	}
 	return nil
