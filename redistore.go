@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -287,6 +288,7 @@ func (s *RediStore) Save(r *http.Request, w http.ResponseWriter, session *sessio
 			return err
 		}
 		fmt.Println("****************************** asdfsadfasdfasdfasdfasdfasdfasdfsadfasdfsadf")
+		debug.PrintStack()
 		http.SetCookie(w, sessions.NewCookie(session.Name(), encoded, session.Options))
 	}
 	return nil
