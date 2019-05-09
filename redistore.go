@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 )
@@ -269,6 +269,7 @@ func (s *RediStore) New(r *http.Request, name string) (*sessions.Session, error)
 
 // Save adds a single session to the response.
 func (s *RediStore) Save(r *http.Request, w http.ResponseWriter, session *sessions.Session) error {
+	http.Header.Del("set-cookie")
 	// Marked for deletion.
 	if session.Options.MaxAge < 0 {
 		if err := s.delete(session); err != nil {
