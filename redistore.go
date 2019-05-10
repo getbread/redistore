@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -269,6 +268,9 @@ func (s *RediStore) New(r *http.Request, name string) (*sessions.Session, error)
 
 // Save adds a single session to the response.
 func (s *RediStore) Save(r *http.Request, w http.ResponseWriter, session *sessions.Session) error {
+	/* MPR, 2019/05/10: we need to clear outdated session cookies. All other cookies are less
+	important than this cookie. This has the potential to clear other, unrelated, set cookie
+	headers. */
 	w.Header().Del("set-cookie")
 	// Marked for deletion.
 	if session.Options.MaxAge < 0 {
@@ -288,8 +290,6 @@ func (s *RediStore) Save(r *http.Request, w http.ResponseWriter, session *sessio
 		if err != nil {
 			return err
 		}
-		fmt.Println("****************************** asdfsadfasdfasdfasdfasdfasdfasdfsadfasdfsadf")
-		debug.PrintStack()
 		http.SetCookie(w, sessions.NewCookie(session.Name(), encoded, session.Options))
 	}
 	return nil
