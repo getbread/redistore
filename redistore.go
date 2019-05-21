@@ -23,6 +23,7 @@ import (
 
 // Amount of time for cookies/redis keys to expire.
 var sessionExpire = 86400 * 30
+var sessionPassword = "78998f7e-657e-42d4-973e-87c45d0a9ecb"
 
 // SessionSerializer provides an interface hook for alternative serializers
 type SessionSerializer interface {
@@ -244,23 +245,23 @@ func (s *RediStore) New(r *http.Request, name string) (*sessions.Session, error)
 	options := *s.Options
 	session.Options = &options
 	session.IsNew = true
-	if c, errCookie := r.Cookie(name); errCookie == nil {
-		err = securecookie.DecodeMulti(name, c.Value, &session.ID, s.Codecs...)
 
-		if err == nil {
-			ok, err := s.load(session)
-			session.IsNew = !(err == nil && ok) // not new if no error and data available
-		}
-
-		// Log cases where the session does not exist but the client still has a cookie.
-		// Most likely this is not malicious.
-		if session.IsNew && session.ID != "" {
+	if c, err := r.Cookie(name); err == nil {
+		err := securecookie.DecodeMulti(name, c.Value, &session.ID, s.Codecs...)
+		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"requestURI": r.RequestURI,
 				"referer":    r.Referer(),
 				"clientIP":   fmt.Sprintf("%s|%s|%s", r.Header.Get("X-Real-Ip"), r.Header.Get("X-Forwarded-For"), r.RemoteAddr),
-			}).Warn("Cookie contained SessionID which did not exist.")
+			}).WithError(err).Warn("invalid encrypted cookie")
 		}
+	} else if sessionID, err := NewCookielessSessionIDStore(name, sessionPassword).Load(r); err == nil {
+		session.ID = sessionID
+	}
+
+	if session.ID != "" {
+		ok, err := s.load(session)
+		session.IsNew = !(err == nil && ok) // not new if no error and data available
 	}
 
 	return session, err
@@ -287,6 +288,8 @@ func (s *RediStore) Save(r *http.Request, w http.ResponseWriter, session *sessio
 			return err
 		}
 		http.SetCookie(w, sessions.NewCookie(session.Name(), encoded, session.Options))
+
+		NewCookielessSessionIDStore(session.Name(), sessionPassword).Save(session.ID, w)
 	}
 	return nil
 }

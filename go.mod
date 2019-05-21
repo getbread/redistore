@@ -10,4 +10,5 @@ require (
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.1.3
 	github.com/sirupsen/logrus v1.4.1 // indirect
+	github.com/stretchr/testify v1.2.2
 )
