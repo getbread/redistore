@@ -225,9 +225,16 @@ func (s *RediStore) Close() error {
 //
 // See gorilla/sessions FilesystemStore.Get().
 func (s *RediStore) Get(r *http.Request, name string) (*sessions.Session, error) {
+	fmt.Println("In the get session printing name", name)
+
+	registry := sessions.GetRegistry(r)
+	fmt.Println("registry", registry)
+
 	sesh, err := sessions.GetRegistry(r).Get(s, name)
+	fmt.Println("sesh", sesh)
 
 	if err != nil {
+		fmt.Println("err in Redistore", err)
 		return nil, err
 	}
 
