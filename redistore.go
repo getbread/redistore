@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/garyburd/redigo/redis"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
+	"github.com/sirupsen/logrus"
 )
 
 // Amount of time for cookies/redis keys to expire.
