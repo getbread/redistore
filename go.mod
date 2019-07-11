@@ -8,4 +8,5 @@ require (
 	github.com/gorilla/securecookie v0.0.0-20141120170742-f0559d009e69
 	github.com/gorilla/sessions v0.0.0-20140613194357-aa5e036e6c44
 	github.com/sirupsen/logrus v1.4.2
+	github.com/stretchr/testify v1.2.2
 )
