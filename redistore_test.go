@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alicebob/miniredis"
 	"github.com/gorilla/sessions"
 )
 
@@ -73,10 +74,15 @@ type FlashMessage struct {
 }
 
 func TestRediStore(t *testing.T) {
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
 	var req *http.Request
 	var rsp *ResponseRecorder
 	var hdr http.Header
-	var err error
 	var ok bool
 	var cookies []string
 	var session *sessions.Session
@@ -89,7 +95,7 @@ func TestRediStore(t *testing.T) {
 	// Round 1 ----------------------------------------------------------------
 
 	// RedisStore
-	store, err := NewRediStore(10, "tcp", ":6379", "", []byte("secret-key"))
+	store, err := NewRediStore(10, "tcp", s.Addr(), "", []byte("secret-key"))
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -98,9 +104,7 @@ func TestRediStore(t *testing.T) {
 	req, _ = http.NewRequest("GET", "http://localhost:8080/", nil)
 	rsp = NewRecorder()
 	// Get a session.
-	if session, err = store.Get(req, "session-key"); err != nil {
-		t.Fatalf("Error getting session: %v", err)
-	}
+	session, _ = store.Get(req, "session-key")
 	// Get a flash.
 	flashes = session.Flashes()
 	if len(flashes) != 0 {
@@ -128,12 +132,12 @@ func TestRediStore(t *testing.T) {
 	rsp = NewRecorder()
 	// Get a session.
 	if session, err = store.Get(req, "session-key"); err != nil {
-		t.Fatalf("Error getting session: %v", err)
+		t.Errorf("Error getting session: %v", err)
 	}
 	// Check all saved values.
 	flashes = session.Flashes()
 	if len(flashes) != 2 {
-		t.Fatalf("Expected flashes; Got %v", flashes)
+		t.Errorf("Expected flashes; Got %v", flashes)
 	}
 	if flashes[0] != "foo" || flashes[1] != "bar" {
 		t.Errorf("Expected foo,bar; Got %v", flashes)
@@ -159,25 +163,23 @@ func TestRediStore(t *testing.T) {
 	session.Options.MaxAge = -1
 	// Save.
 	if err = sessions.Save(req, rsp); err != nil {
-		t.Fatalf("Error saving session: %v", err)
+		t.Errorf("Error saving session: %v", err)
 	}
 
 	// Round 3 ----------------------------------------------------------------
 	// Custom type
 
 	// RedisStore
-	store, err = NewRediStore(10, "tcp", ":6379", "", []byte("secret-key"))
+	store, err = NewRediStore(10, "tcp", s.Addr(), "", []byte("secret-key"))
 	if err != nil {
-		t.Fatal(err.Error())
+		t.Error(err.Error())
 	}
 	defer store.Close()
 
 	req, _ = http.NewRequest("GET", "http://localhost:8080/", nil)
 	rsp = NewRecorder()
 	// Get a session.
-	if session, err = store.Get(req, "session-key"); err != nil {
-		t.Fatalf("Error getting session: %v", err)
-	}
+	session, _ = store.Get(req, "session-key")
 	// Get a flash.
 	flashes = session.Flashes()
 	if len(flashes) != 0 {
@@ -187,12 +189,12 @@ func TestRediStore(t *testing.T) {
 	session.AddFlash(&FlashMessage{42, "foo"})
 	// Save.
 	if err = sessions.Save(req, rsp); err != nil {
-		t.Fatalf("Error saving session: %v", err)
+		t.Errorf("Error saving session: %v", err)
 	}
 	hdr = rsp.Header()
 	cookies, ok = hdr["Set-Cookie"]
 	if !ok || len(cookies) != 1 {
-		t.Fatal("No cookies. Header:", hdr)
+		t.Error("No cookies. Header:", hdr)
 	}
 
 	// Round 4 ----------------------------------------------------------------
@@ -202,13 +204,11 @@ func TestRediStore(t *testing.T) {
 	req.Header.Add("Cookie", cookies[0])
 	rsp = NewRecorder()
 	// Get a session.
-	if session, err = store.Get(req, "session-key"); err != nil {
-		t.Fatalf("Error getting session: %v", err)
-	}
+	session, _ = store.Get(req, "session-key")
 	// Check all saved values.
 	flashes = session.Flashes()
 	if len(flashes) != 1 {
-		t.Fatalf("Expected flashes; Got %v", flashes)
+		t.Errorf("Expected flashes; Got %v", flashes)
 	}
 	custom := flashes[0].(FlashMessage)
 	if custom.Type != 42 || custom.Message != "foo" {
@@ -220,7 +220,7 @@ func TestRediStore(t *testing.T) {
 	session.Options.MaxAge = -1
 	// Save.
 	if err = sessions.Save(req, rsp); err != nil {
-		t.Fatalf("Error saving session: %v", err)
+		t.Errorf("Error saving session: %v", err)
 	}
 
 	// Round 5 ----------------------------------------------------------------
@@ -251,7 +251,7 @@ func TestRediStore(t *testing.T) {
 	// Round 6 ----------------------------------------------------------------
 	// RediStore change MaxLength of session
 
-	store, err = NewRediStore(10, "tcp", ":6379", "", []byte("secret-key"))
+	store, err = NewRediStore(10, "tcp", s.Addr(), "", []byte("secret-key"))
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -277,7 +277,7 @@ func TestRediStore(t *testing.T) {
 	// Round 7 ----------------------------------------------------------------
 
 	// RedisStoreWithDB
-	store, err = NewRediStoreWithDB(10, "tcp", ":6379", "", "1", []byte("secret-key"))
+	store, err = NewRediStoreWithDB(10, "tcp", s.Addr(), "", "1", []byte("secret-key"))
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -286,9 +286,7 @@ func TestRediStore(t *testing.T) {
 	req, _ = http.NewRequest("GET", "http://localhost:8080/", nil)
 	rsp = NewRecorder()
 	// Get a session. Using the same key as previously, but on different DB
-	if session, err = store.Get(req, "session-key"); err != nil {
-		t.Fatalf("Error getting session: %v", err)
-	}
+	session, _ = store.Get(req, "session-key")
 	// Get a flash.
 	flashes = session.Flashes()
 	if len(flashes) != 0 {
@@ -324,7 +322,7 @@ func TestRediStore(t *testing.T) {
 	// JSONSerializer
 
 	// RedisStore
-	store, err = NewRediStore(10, "tcp", ":6379", "", []byte("secret-key"))
+	store, err = NewRediStore(10, "tcp", s.Addr(), "", []byte("secret-key"))
 	store.SetSerializer(JSONSerializer{})
 	if err != nil {
 		t.Fatal(err.Error())
@@ -334,9 +332,7 @@ func TestRediStore(t *testing.T) {
 	req, _ = http.NewRequest("GET", "http://localhost:8080/", nil)
 	rsp = NewRecorder()
 	// Get a session.
-	if session, err = store.Get(req, "session-key"); err != nil {
-		t.Fatalf("Error getting session: %v", err)
-	}
+	session, _ = store.Get(req, "session-key")
 	// Get a flash.
 	flashes = session.Flashes()
 	if len(flashes) != 0 {
@@ -371,7 +367,7 @@ func TestRediStore(t *testing.T) {
 	// Round 9 ----------------------------------------------------------------
 	// RediStore refresh session
 
-	store, err = NewRediStore(10, "tcp", ":6379", "", []byte("secret-key"))
+	store, err = NewRediStore(10, "tcp", s.Addr(), "", []byte("secret-key"))
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -395,7 +391,13 @@ func TestRediStore(t *testing.T) {
 }
 
 func TestPingGoodPort(t *testing.T) {
-	store, _ := NewRediStore(10, "tcp", ":6379", "", []byte("secret-key"))
+	s, err := miniredis.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	store, _ := NewRediStore(10, "tcp", s.Addr(), "", []byte("secret-key"))
 	defer store.Close()
 	ok, err := store.ping()
 	if err != nil {
