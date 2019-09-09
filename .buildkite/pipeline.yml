@@ -1,0 +1,5 @@
+steps:
+  - label: ":golang: test and build"
+    command: ./.buildkite/pipeline.bash
+    agents:
+      queue: golang
